@@ -338,11 +338,19 @@ jobs:
           else
             echo "artifact_name=WSA-with-Magisk-GApps-${variant}_${{ matrix.arch }}" >> $GITHUB_ENV
           fi
-      - name: Upload WSA
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.artifact_name }}
-          path: './${{ matrix.arch }}/*'
+          
+      - name: 打包文件... (Repack files to zip)
+        run: |
+          if [[ $SupperUser == "true" ]]; then
+            su=-SU
+          fi
+          if [[ $Magiskk == "true" ]]; then
+            mag=-Magisk
+          fi
+          echo '${{ matrix.arch }}'.zip' > temp.txt
+          echo "file=$(cat temp.txt)" >> $GITHUB_ENV
+          file=$(cat temp.txt)
+          zip -r $file ./${{ matrix.arch }}/*
       
       - name: 上传至Release... (Upload to Release)
         uses: ncipollo/release-action@v1.8.6
