@@ -341,12 +341,6 @@ jobs:
           
       - name: 打包文件... (Repack files to zip)
         run: |
-          if [[ $SupperUser == "true" ]]; then
-            su=-SU
-          fi
-          if [[ $Magiskk == "true" ]]; then
-            mag=-Magisk
-          fi
           echo '${{ matrix.arch }}'.zip' > temp.txt
           echo "file=$(cat temp.txt)" >> $GITHUB_ENV
           file=$(cat temp.txt)
