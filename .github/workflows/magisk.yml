@@ -269,7 +269,7 @@ jobs:
           
       - name: 打包文件... (Repack files to zip)
         run: |
-          echo '${{ matrix.arch }}.zip' > temp.txt
+          echo '${{ env.artifact_name }}.zip' > temp.txt
           echo "file=$(cat temp.txt)" >> $GITHUB_ENV
           file=$(cat temp.txt)
           zip -r $file ./${{ matrix.arch }}/*
