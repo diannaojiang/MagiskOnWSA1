@@ -25,6 +25,7 @@ jobs:
         run: |
           pip3 install beautifulsoup4 lxml
           sudo apt-get update && sudo apt-get install setools lzip
+          echo "NUM=$(date +%s%N | cut -c 1-6)" >> $GITHUB_ENV
       - name: Download WSA
         shell: python
         run: |
@@ -342,3 +343,13 @@ jobs:
         with:
           name: ${{ env.artifact_name }}
           path: './${{ matrix.arch }}/*'
+      
+      - name: 上传至Release... (Upload to Release)
+        if: steps.var.outputs.upload_release == 'true'
+        uses: ncipollo/release-action@v1.8.6
+        with:
+          artifacts: ${{ env.file }}
+          name: ${{ env.file }}-${{ env.NUM }}
+          tag: ${{ env.file }}-${{ env.NUM }}
+          body: "${{ env.file }}-${{ env.NUM }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
