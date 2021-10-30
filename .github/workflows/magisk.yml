@@ -345,7 +345,6 @@ jobs:
           path: './${{ matrix.arch }}/*'
       
       - name: 上传至Release... (Upload to Release)
-        if: steps.var.outputs.upload_release == 'true'
         uses: ncipollo/release-action@v1.8.6
         with:
           artifacts: ${{ env.file }}
