@@ -8,11 +8,15 @@ on:
       magisk_apk:
         description: 'Download link to magisk apk.'
         required: true
-        default: 'https://raw.githubusercontent.com/LSPosed/MagiskOnWSA/main/magisk.apk'
+        default: 'https://raw.githubusercontent.com/topjohnwu/magisk-files/canary/app-debug.apk'
       gapps_variant:
         description: 'Variants of gapps. Should be: [none, aroma, super, stock, full, mini, micro, nano, pico, tvstock, tvmini]'
         required: true
         default: 'none'
+      root_sol:
+        description: 'Root soluction. Should be: [magisk, none]'
+        required: true
+        default: 'magisk'
 
 jobs:
   build:
@@ -77,7 +81,7 @@ jobs:
           magisk_apk = """${{ github.event.inputs.magisk_apk }}"""
 
           if not magisk_apk:
-              magisk_apk = """https://raw.githubusercontent.com/LSPosed/MagiskOnWSA/main/magisk.apk"""
+              magisk_apk = """https://raw.githubusercontent.com/topjohnwu/magisk-files/canary/app-debug.apk"""
 
           out_file = "magisk.zip"
 
@@ -130,7 +134,7 @@ jobs:
         if: ${{ github.event.inputs.gapps_variant != 'none' && github.event.inputs.gapps_variant != '' }}
         run: |
           mkdir gapps
-          unzip -p gapps.zip {Core,GApps}/'*.lz' | tar --lzip -C gapps -xvf - -i --strip-components=2 --exclude='setupwizardtablet-x86_64' --exclude='packageinstallergoogle-all' --exclude='speech-common' --exclude='markup-lib-arm' --exclude='markup-all'
+          unzip -p gapps.zip {Core,GApps}/'*.lz' | tar --lzip -C gapps -xvf - -i --strip-components=2 --exclude='setupwizardtablet-x86_64' --exclude='packageinstallergoogle-all' --exclude='speech-common' --exclude='markup-lib-arm' --exclude='markup-lib-arm64' --exclude='markup-all'
 
           e2fsck -yf ${{ matrix.arch }}/system.img
           resize2fs ${{ matrix.arch }}/system.img $(( $(du -sB512 gapps | cut -f1) + $(du -sB512 ${{ matrix.arch }}/system.img | cut -f1) ))s
@@ -150,6 +154,7 @@ jobs:
           sudo mount -o loop ${{ matrix.arch }}/product.img system/product
           sudo mount -o loop ${{ matrix.arch }}/system_ext.img system/system_ext
       - name: Integrate Magisk
+        if: ${{ github.event.inputs.root_sol == 'magisk' || github.event.inputs.root_sol == '' }}
         run: |
           sudo mkdir system/sbin
           sudo chcon --reference system/init.environ.rc system/sbin
@@ -216,8 +221,9 @@ jobs:
         if: ${{ github.event.inputs.gapps_variant != 'none' && github.event.inputs.gapps_variant != '' }}
         run: |
           wget -qO- "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/archive/$GITHUB_REF.tar.gz" | sudo tar --wildcards -zxvf- --strip-component=2 '*/x64/gapps/*'
-          sudo cp -r gapps/{app,etc,framework,priv-app} system/system
-          sudo cp -r gapps/product/* system/product/
+          shopt -s extglob
+          sudo cp -vr gapps/!(product) system/system
+          sudo cp -vr gapps/product/* system/product/
 
           sudo find system/system/{app,etc,framework,priv-app} -exec chown root:root {} \;
           sudo find system/product/{app,etc,overlay,priv-app} -exec chown root:root {} \;
@@ -226,18 +232,18 @@ jobs:
           sudo find system/product/{app,etc,overlay,priv-app} -type d -exec chmod 0755 {} \;
 
           sudo find system/system/{app,framework,priv-app} -type f -exec chmod 0644 {} \;
-          sudo find system/system/etc/{permissions,default-permissions,preferred-apps,sysconfig} -type f -exec chmod 0644 {} \;
+          ls gapps/etc/ | xargs -n 1 -I dir sudo find system/system/etc/dir -type f -exec chmod 0644 {} \;
           sudo find system/product/{app,etc,overlay,priv-app} -type f -exec chmod 0644 {} \;
 
           sudo find system/system/{app,framework,priv-app} -type d -exec chcon --reference=system/system/app {} \;
           sudo find system/product/{app,etc,overlay,priv-app} -type d -exec chcon --reference=system/product/app {} \;
-          sudo find system/system/etc/{permissions,default-permissions,preferred-apps,sysconfig} -type d -exec chcon --reference=system/system/etc/permissions {} \;
+          ls gapps/etc/ | xargs -n 1 -I dir sudo find system/system/etc/dir -type d -exec chcon --reference=system/system/etc/permissions {} \;
 
           sudo find system/system/{app,framework,priv-app} -type f -exec chcon --reference=system/system/framework/ext.jar {} \;
-          sudo find system/system/etc/{permissions,default-permissions,preferred-apps,sysconfig} -type f -exec chcon --reference=system/system/etc/permissions {} \;
+          ls gapps/etc/ | xargs -n 1 -I dir sudo find system/system/etc/dir -type f -exec chcon --reference=system/system/etc/permissions {} \;
           sudo find system/product/{app,etc,overlay,priv-app} -type f -exec chcon --reference=system/product/etc/permissions/privapp-permissions-venezia.xml {} \;
-
-          sudo ./magisk/magiskpolicy --load system/vendor/etc/selinux/precompiled_sepolicy --save system/vendor/etc/selinux/precompiled_sepolicy "allow gmscore_app gmscore_app vsock_socket { create connect write read }" "allow gmscore_app device_config_runtime_native_boot_prop file read"
+          chmod +x ./magisk/magiskpolicy
+          sudo ./magisk/magiskpolicy --load system/vendor/etc/selinux/precompiled_sepolicy --save system/vendor/etc/selinux/precompiled_sepolicy "allow gmscore_app gmscore_app vsock_socket { create connect write read }" "allow gmscore_app device_config_runtime_native_boot_prop file read" "allow gmscore_app system_server_tmpfs dir search" "allow gmscore_app system_server_tmpfs file open"
       
       - name: Umount images
         run: |
@@ -255,9 +261,29 @@ jobs:
           resize2fs -M ${{ matrix.arch }}/product.img
           e2fsck -yf ${{ matrix.arch }}/system_ext.img
           resize2fs -M ${{ matrix.arch }}/system_ext.img
-      - name: Remove signature
+      - name: Remove signature and add scripts
         run: |
           rm -rf ${{ matrix.arch }}/\[Content_Types\].xml ${{ matrix.arch }}/AppxBlockMap.xml ${{ matrix.arch }}/AppxSignature.p7x ${{ matrix.arch }}/AppxMetadata
+          tee ${{ matrix.arch }}/Install.ps1 <<EOF
+          function Test-Administrator
+          {
+              [OutputType([bool])]
+              param()
+              process {
+                  [Security.Principal.WindowsPrincipal]\$user = [Security.Principal.WindowsIdentity]::GetCurrent();
+                  return \$user.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator);
+              }
+          }
+
+          if(-not (Test-Administrator))
+          {
+              Start-Process -Verb RunAs powershell.exe -Args "-executionpolicy bypass -command Set-Location \`"\$PSScriptRoot\`"; \`"\$PSCommandPath\`""
+              exit
+          }
+
+          \$ErrorActionPreference = "Stop";
+          Add-AppxPackage -Register .\AppxManifest.xml
+          EOF
       - name: Generate artifact name
         run: |
           variant="${{ github.event.inputs.gapps_variant }}"
