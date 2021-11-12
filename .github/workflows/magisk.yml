@@ -299,8 +299,6 @@ jobs:
             name2="-NoGApps"
           else
             name2="-GApps-${variant}"
-          fi
-		  
           echo "artifact_name=WSA${name1}${name2}_${{ matrix.arch }}" >> $GITHUB_ENV
 
       - name: Upload WSA
