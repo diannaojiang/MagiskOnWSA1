@@ -156,11 +156,20 @@ jobs:
       - name: Integrate Magisk
         if: ${{ github.event.inputs.root_sol == 'magisk' || github.event.inputs.root_sol == '' }}
         run: |
+          cp magisk.zip ${{ matrix.arch }}/Magisk.apk
           sudo mkdir system/sbin
           sudo chcon --reference system/init.environ.rc system/sbin
           sudo chown root:root system/sbin
           sudo chmod 0700 system/sbin
           sudo cp magisk/* system/sbin/
+          sudo tee -a system/sbin/loadpolicy.sh <<EOF
+          #!/system/bin/sh
+          for module in $(ls /data/adb/modules); do
+              if ! [ -f "/data/adb/modules/$module/disable" ] && [ -f "/data/adb/modules/$module/sepolicy.rule" ]; then
+                  /sbin/magiskpolicy --live --apply "/data/adb/modules/$module/sepolicy.rule"
+              fi
+          done
+          EOF
           sudo find system/sbin -type f -exec chmod 0755 {} \;
           sudo find system/sbin -type f -exec chown root:root {} \;
           sudo find system/sbin -type f -exec chcon --reference system/product {} \;
@@ -188,9 +197,15 @@ jobs:
               mkdir /dev/wsa-magisk/.magisk/mirror 700
               mkdir /dev/wsa-magisk/.magisk/block 700
               rm /dev/.magisk_unblock
+              start IhhslLhHYfse
               start FAhW7H9G5sf
               wait /dev/.magisk_unblock 40
               rm /dev/.magisk_unblock
+
+          service IhhslLhHYfse /system/bin/sh /sbin/loadpolicy.sh
+              user root
+              seclabel u:r:magisk:s0
+              oneshot
 
           service FAhW7H9G5sf /dev/wsa-magisk/magisk --post-fs-data
               user root
@@ -261,10 +276,20 @@ jobs:
           resize2fs -M ${{ matrix.arch }}/product.img
           e2fsck -yf ${{ matrix.arch }}/system_ext.img
           resize2fs -M ${{ matrix.arch }}/system_ext.img
+      - name: add ADB
+        if: ${{ github.event.inputs.root_sol == 'magisk' || github.event.inputs.root_sol == '' }}
+        run: |
+          wget https://dl.google.com/android/repository/platform-tools-latest-windows.zip -Oadb.zip
+          unzip adb.zip platform-tools/?db*
+          cp platform-tools/?db* ${{ matrix.arch }}/.
+          rm -r platform-tools
+          rm adb.zip
       - name: Remove signature and add scripts
         run: |
           rm -rf ${{ matrix.arch }}/\[Content_Types\].xml ${{ matrix.arch }}/AppxBlockMap.xml ${{ matrix.arch }}/AppxSignature.p7x ${{ matrix.arch }}/AppxMetadata
           tee ${{ matrix.arch }}/Install.ps1 <<EOF
+          # Automated Install script by Mioki
+          # http://github.com/okibcn
           function Test-Administrator
           {
               [OutputType([bool])]
