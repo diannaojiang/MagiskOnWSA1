@@ -34,6 +34,12 @@ https://user-images.githubusercontent.com/5022927/145696886-e13ebfc1-ff25-4410-8
 1. Right-click `Install.ps1` and select `Run with PowerShell`
     - If you previously have a MagiskOnWSA installation, it will automatically uninstall the previous while **preserving all userdata** and install the new one, so don't worry about your data.
     - If you have an official WSA installation, you should uninstall it first. (In case you want to preserve your data, you can backup `%LOCALAPPDATA%\Packages\MicrosoftCorporationII.WindowsSubsystemForAndroid_8wekyb3d8bbwe\LocalCache\userdata.vhdx` before uninstallation and restore it after installation.) (If you want to restore the icons to start menu, please install and use [WSAHelper](https://github.com/LSPosed/WSAHelper/releases/latest).)
+    - If the popup windows disappear **without asking administrative permission** and WSA is not installed successfully, you should manually run `Install.ps1` as administrator:
+        1. Press `Win+x` and select `Windows Terminal (Admin)`
+        2. Input `cd "{X:\path\to\your\extracted\folder}"` and press `enter`, and remember to replace `{X:\path\to\your\extracted\folder}` including the `{}`, for example `cd "D:\wsa"`
+        3. Input `PowerShell.exe -ExecutionPolicy Bypass -File .\Install.ps1` and press `enter`
+        4. The script will run and WSA will be installed
+        5. If this workaround does not work, your PC is not supported for WSA
 1. Magisk/Play store will be launched. Enjoy by installing LSPosed-zygisk with zygisk enabled or Riru and LSPosed-riru
 
 ## FAQ
@@ -72,13 +78,10 @@ https://user-images.githubusercontent.com/5022927/145696886-e13ebfc1-ff25-4410-8
     Magisk actively remove online module repository. You can install module locally or by `adb push module.zip /data/local/tmp` and `adb shell su -c magisk --install-module /data/local/tmp/module.zip`.
 - Can I use Magisk 23.0 stable or lower version?
 
-    No. Magisk has bugs preventing itself running on WSA. Magisk Canary has fixed them. So try Magisk 23 canary or higher version.
-- But Magisk has removed hide since 23 canary?
-
-    Use [Magisk Alpha](https://t.me/magiskalpha) or use Zygisk with [Shamiko](https://t.me/c/1414270883/25744) for hidding. To intergrate Magisk Alpha, use this Magisk apk link https://github.com/vvb2060/magisk_files/raw/alpha/app-release.apk for the Github Action.
+    No. Magisk has bugs preventing itself running on WSA. Magisk 24+ has fixed them. So you must use Magisk 24 or higher version.
 - How can I get rid of Magisk?
 
-    Input `none` as root solution.
+    Choose `none` as root solution.
 - Github Action script is updated, how can I synchronize it?
 
     1. In your fork repository, click `fetch upstream`
